@@ -51,13 +51,29 @@
 ./tars-voice-correction -word="电脑" -mode=synonym
 ```
 
+## 自动更新
+
+内置 `tars-update` 模块，启动时自动检测新版本，支持一键升级：
+
+```bash
+# 检查是否有新版本
+./tars-voice-correction update check
+
+# 下载并安装最新版本（自动校验 SHA256、备份旧版本、自重启）
+./tars-voice-correction update apply
+```
+
+- 访问 GitHub Releases 比对版本
+- 下载失败或版本解析异常时自动回退到 `stable_versions.json` 记录的最后稳定版本
+- 六平台二进制全覆盖（Linux / macOS / Windows，amd64 / arm64）
+
 ## 零外部依赖
 
 全部字典数据编译期嵌入 Go 源码，单二进制分发，无 Python runtime、无外部模型文件。
 
 ## 版本
 
-当前版本：**v0.1.0**
+当前版本：**v0.2.0**
 
 ## License
 
