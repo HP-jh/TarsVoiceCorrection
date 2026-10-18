@@ -53,8 +53,8 @@ func TestServerHandleToolsList(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected tools array")
 	}
-	if len(tools) != 5 {
-		t.Errorf("Expected 5 tools, got %d", len(tools))
+	if len(tools) != 6 {
+		t.Errorf("Expected 6 tools, got %d", len(tools))
 	}
 }
 

@@ -106,6 +106,18 @@ func (s *Server) initTools() {
 				Required: []string{"text"},
 			},
 		},
+		{
+			Name:        "batch_correction",
+			Description: "Correct multiple texts in one call. Supports concurrent processing with configurable workers.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"items":   {Type: "array", Description: "Array of {id, text} objects to correct"},
+					"workers": {Type: "integer", Description: "Number of concurrent workers (default 4, max 16)"},
+				},
+				Required: []string{"items"},
+			},
+		},
 	}
 }
 
@@ -158,7 +170,7 @@ func (s *Server) handleInitialize(msg JSONRPCMessage) JSONRPCMessage {
 		},
 		"serverInfo": map[string]interface{}{
 			"name":    "tars-voice-correction",
-			"version": "0.1.0",
+			"version": "0.3.0",
 		},
 	}
 	return NewSuccessResponse(msg.ID, result)
@@ -199,6 +211,8 @@ func (s *Server) handleToolCall(msg JSONRPCMessage) JSONRPCMessage {
 		result, callErr = s.callFuzzySearch(params.Arguments)
 	case "lang_detect":
 		result, callErr = s.callLangDetect(params.Arguments)
+	case "batch_correction":
+		result, callErr = s.callBatchCorrection(params.Arguments)
 	default:
 		return NewErrorResponse(msg.ID, -32601, fmt.Sprintf("Unknown tool: %s", params.Name))
 	}
@@ -295,6 +309,31 @@ func (s *Server) callLangDetect(args json.RawMessage) (interface{}, error) {
 	return map[string]interface{}{
 		"text":     p.Text,
 		"language": lang,
+	}, nil
+}
+
+func (s *Server) callBatchCorrection(args json.RawMessage) (interface{}, error) {
+	var p struct {
+		Items   []corrector.BatchItem `json:"items"`
+		Workers int                   `json:"workers"`
+	}
+	if err := json.Unmarshal(args, &p); err != nil {
+		return nil, err
+	}
+	if len(p.Items) == 0 {
+		return nil, fmt.Errorf("items array is required and must not be empty")
+	}
+	if p.Workers <= 0 {
+		p.Workers = 4
+	}
+	if p.Workers > 16 {
+		p.Workers = 16
+	}
+	ctx := context.Background()
+	results := s.corr.BatchCorrect(ctx, p.Items, p.Workers)
+	return map[string]interface{}{
+		"count":   len(results),
+		"results": results,
 	}, nil
 }
 

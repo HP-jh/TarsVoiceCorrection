@@ -43,6 +43,8 @@ type Corrector struct {
 	customDict *CustomDictionary
 	wordList   []string
 	maxLen     int
+	cache      *ResultCache
+	cacheOn    bool
 }
 
 // NewCorrector creates a new corrector with all strategies initialized.
@@ -69,6 +71,8 @@ func NewCorrector() (*Corrector, error) {
 		customDict: cd,
 		wordList:   wl,
 		maxLen:     1000,
+		cache:      NewResultCache(256),
+		cacheOn:    true,
 	}
 	return c, nil
 }
@@ -79,6 +83,13 @@ func (c *Corrector) Correct(text string) CorrectionResult {
 		text = text[:c.maxLen]
 	}
 	original := text
+
+	// Cache lookup
+	if c.cacheOn && c.cache != nil {
+		if r, ok := c.cache.Get(original); ok {
+			return r
+		}
+	}
 
 	result := CorrectionResult{
 		Original:   original,
@@ -161,6 +172,11 @@ func (c *Corrector) Correct(text string) CorrectionResult {
 		}
 	} else {
 		result.Message = "文本看起来没问题，无需纠错"
+	}
+
+	// Cache store
+	if c.cacheOn && c.cache != nil {
+		c.cache.Set(original, result)
 	}
 
 	return result
@@ -323,6 +339,28 @@ func (c *Corrector) LangDetect(text string) string {
 func (c *Corrector) AddCustomWord(word string) error {
 	c.customDict.Add(word)
 	return c.customDict.Save()
+}
+
+// EnableCache turns the result cache on.
+func (c *Corrector) EnableCache() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cacheOn = true
+}
+
+// DisableCache turns the result cache off.
+func (c *Corrector) DisableCache() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cacheOn = false
+}
+
+// CacheStats returns the current cache size.
+func (c *Corrector) CacheStats() int {
+	if c.cache == nil {
+		return 0
+	}
+	return c.cache.Len()
 }
 
 func deduplicateStrings(ss []string) []string {
